@@ -1,3 +1,5 @@
+from time import sleep
+
 from PyQt6.QtCore import QObject, QEvent, Qt
 from PyQt6.QtWidgets import QPushButton
 
@@ -31,6 +33,7 @@ class Presenter:
                 widget.clicked.connect(lambda _, w=widget: set_actions(w))
 
         def set_actions(button: QPushButton) -> None:
+            self._view.clear_all()
             self._current_db_id = int(button.text()[-1])
             self._model.create_connection(self._current_db_id)
 
@@ -42,7 +45,7 @@ class Presenter:
                 self._view.set_list_data([row[11] for row in msysobjects_data])
                 self._set_inactive_list_items()
             except Exception as exception:
-                self.handle_errors(exception)
+                self.show_error(exception)
 
     def _handle_query_button_click(self) -> None:
         try:
@@ -50,7 +53,7 @@ class Presenter:
             headers, data = self._model.execute_query(self._current_db_id, query)
             self._view.set_table_data(headers, data, len(data), len(headers))
         except Exception as exception:
-            self.handle_errors(exception)
+            self.show_error(exception)
 
     def _handle_list_item_activated(self) -> None:
         current_item = self._view.list_widget.currentItem().text()
@@ -60,18 +63,15 @@ class Presenter:
             self._view.table_data_label.setText(f'{current_item} data')
         except Exception as exception:
             if '07002' in str(exception):
-                try:
-                    headers, data = self._model.execute_query(
-                        self._current_db_id, f'EXEC [{current_item}] ?', '2023-07-13'
-                    )
-                    self._view.set_table_data(headers, data, len(data), len(headers))
-                    self._view.table_data_label.setText(f'{current_item} data')
-                except Exception as exception:
-                    self.handle_errors(exception)
+                headers, data = self._model.execute_query(
+                    self._current_db_id, f'EXEC [{current_item}] ?', '2023-07-13'
+                )
+                self._view.set_table_data(headers, data, len(data), len(headers))
+                self._view.table_data_label.setText(f'{current_item} data')
             else:
-                self.handle_errors(exception)
+                self.show_error(exception)
 
-    def handle_errors(self, exception: Exception) -> None:
+    def show_error(self, exception: Exception) -> None:
         self._view.show_error_message(str(exception))
 
     def _set_inactive_list_items(self):
@@ -81,6 +81,7 @@ class Presenter:
             item_type = int(data[index][-1])
             item_flag = int(data[index][4])
             if not (item_type in (1, 5) and item_flag in (-2147483648, -2147352566, 0, 3, 10, 262154)):
+                # ...
                 item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
 
 
@@ -98,5 +99,5 @@ class ShortcutFilter(QObject):
                     self._button.click()
                     return True
                 except Exception as exception:
-                    self._presenter.handle_errors(exception)
+                    self._presenter.show_error(exception)
         return False

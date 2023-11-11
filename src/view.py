@@ -1,3 +1,5 @@
+from time import sleep
+
 import qdarktheme
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QMainWindow, QToolBar, QListWidget, QWidget, QApplication,
@@ -21,7 +23,6 @@ class View(QMainWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._windowFX.setAcrylicEffect(int(self.winId()))
         qdarktheme.setup_theme(custom_colors={'primary': '#d79df1'})
-
         self.show()
 
     def _create_toolbar(self) -> None:
@@ -155,14 +156,21 @@ class View(QMainWindow):
 
     def set_table_data(self, headers: list[str], data: list[list[str, ...]], row_count: int, column_count: int) -> None:
         self._table_widget.clear_and_hide_table()
+        self.table_data_label.setText('Query result data')
         self._table_widget.set_table_data(headers, data, row_count, column_count)
 
     def set_list_data(self, data: list[str]) -> None:
-        self.list_widget.clear_list()
+        self.list_widget.clear()
         self.list_widget.set_list_data(data)
 
     def show_error_message(self, message: str) -> None:
         QMessageBox.critical(self, 'An error occurred', message)
+
+    def clear_all(self):
+        self.list_widget.clearSelection()
+        self._table_widget.clear_and_hide_table()
+        self.table_data_label.setText('Database selected table data')
+        self.list_widget.clear()
 
 
 class TableWidget(QTableWidget):
@@ -217,9 +225,6 @@ class ListWidget(QListWidget):
         super().__init__()
 
         self.setStyleSheet('background: transparent; font-size: 16px;')
-
-    def clear_list(self):
-        self.clear()
 
     def set_list_data(self, data: list[str]) -> None:
         for elem in data:
