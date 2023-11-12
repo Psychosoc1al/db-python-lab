@@ -1,4 +1,4 @@
-from time import sleep
+import re
 
 from PyQt6.QtCore import QObject, QEvent, Qt
 from PyQt6.QtWidgets import QPushButton
@@ -11,12 +11,14 @@ class Presenter:
     _model: Model
     _view: View
     _current_db_id: int
+    _activated_list_item: str
 
     def __init__(self, model, view) -> None:
         self._model = model
         self._view = view
 
         self._setup_gui_connections()
+        self._view.parameters_dialog.submitted.connect(self._handle_parameters_on_submit)
 
     def _setup_gui_connections(self) -> None:
         self._set_toolbar_actions()
@@ -25,7 +27,7 @@ class Presenter:
         shortcut_filter = ShortcutFilter(self._view.execute_query_button, self)
         self._view.installEventFilter(shortcut_filter)
 
-        self._view.list_widget.itemSelectionChanged.connect(self._handle_list_item_activated)
+        self._view.list_widget.itemActivated.connect(self._handle_list_item_activated)
 
     def _set_toolbar_actions(self) -> None:
         for widget in self._view.tools.children():
@@ -52,22 +54,25 @@ class Presenter:
             query = self._view.query_input.toPlainText()
             headers, data = self._model.execute_query(self._current_db_id, query)
             self._view.set_table_data(headers, data, len(data), len(headers))
+            # TODO: check for update queries (no table returned)
         except Exception as exception:
             self.show_error(exception)
 
     def _handle_list_item_activated(self) -> None:
-        current_item = self._view.list_widget.currentItem().text()
+        self._activated_list_item = self._view.list_widget.currentItem().text()
         try:
-            headers, data = self._model.execute_query(self._current_db_id, f'SELECT * FROM [{current_item}]')
+            headers, data = self._model.execute_query(
+                self._current_db_id,
+                f'SELECT * FROM [{self._activated_list_item}]'
+            )
             self._view.set_table_data(headers, data, len(data), len(headers))
-            self._view.table_data_label.setText(f'{current_item} data')
+            self._view.table_data_label.setText(f'{self._activated_list_item} data')
         except Exception as exception:
             if '07002' in str(exception):
-                headers, data = self._model.execute_query(
-                    self._current_db_id, f'EXEC [{current_item}] ?', '2023-07-13'
-                )
-                self._view.set_table_data(headers, data, len(data), len(headers))
-                self._view.table_data_label.setText(f'{current_item} data')
+                params_amount_search = re.search(r' (\d)\. \(', str(exception))
+                params_amount = int(params_amount_search.group(1))
+
+                self._view.show_parameters_dialog(params_amount)
             else:
                 self.show_error(exception)
 
@@ -83,6 +88,24 @@ class Presenter:
             if not (item_type in (1, 5) and item_flag in (-2147483648, -2147352566, 0, 3, 10, 262154)):
                 # ...
                 item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
+
+    def _handle_parameters_on_submit(self, params_str: str) -> None:
+        try:
+            params = params_str.split('\v')
+            query_params_string = '?'
+            if len(params) != 1:
+                query_params_string += ', ?' * (len(params) - 1)
+
+            headers, data = self._model.execute_query(
+                self._current_db_id,
+                f'EXEC [{self._activated_list_item}] {query_params_string}',
+                params
+            )
+            self._view.set_table_data(headers, data, len(data), len(headers))
+            self._view.table_data_label.setText(f'{self._activated_list_item} data')
+        except Exception as exception:
+            self.show_error(exception)
+            self._view.clear_all(False)
 
 
 class ShortcutFilter(QObject):

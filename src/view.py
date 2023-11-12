@@ -1,10 +1,9 @@
-from time import sleep
-
 import qdarktheme
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (QMainWindow, QToolBar, QListWidget, QWidget, QApplication,
                              QTableWidget, QTableWidgetItem, QHBoxLayout, QSplitter, QVBoxLayout, QLabel, QTextEdit,
-                             QPushButton, QMessageBox, QAbstractItemView)
+                             QPushButton, QMessageBox, QAbstractItemView, QDialog, QLineEdit)
 
 from qtacrylic_lib import WindowEffect
 
@@ -21,8 +20,10 @@ class View(QMainWindow):
 
         self._windowFX = WindowEffect()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self._windowFX.setAcrylicEffect(int(self.winId()))
+        self._windowFX.setAeroEffect(int(self.winId()))
         qdarktheme.setup_theme(custom_colors={'primary': '#d79df1'})
+
+        self.parameters_dialog = DialogWindow(self)
         self.show()
 
     def _create_toolbar(self) -> None:
@@ -166,11 +167,19 @@ class View(QMainWindow):
     def show_error_message(self, message: str) -> None:
         QMessageBox.critical(self, 'An error occurred', message)
 
-    def clear_all(self):
+    def clear_all(self, clear_list: bool = True) -> None:
         self.list_widget.clearSelection()
         self._table_widget.clear_and_hide_table()
         self.table_data_label.setText('Database selected table data')
-        self.list_widget.clear()
+        if clear_list:
+            self.list_widget.clear()
+
+    def show_parameters_dialog(self, params_amount: int) -> None:
+        for i in range(params_amount):
+            self.parameters_dialog.add_parameter_field(i + 1)
+
+        self.parameters_dialog.add_submit_button()
+        self.parameters_dialog.show()
 
 
 class TableWidget(QTableWidget):
@@ -212,7 +221,6 @@ class TableWidget(QTableWidget):
 
         for i in range(self._row_count):
             self.resizeRowToContents(i)
-            self.setRowHeight(i, self.rowHeight(i) - 4)
 
     def clear_and_hide_table(self):
         self.setColumnCount(0)
@@ -229,3 +237,68 @@ class ListWidget(QListWidget):
     def set_list_data(self, data: list[str]) -> None:
         for elem in data:
             self.addItem(elem)
+
+
+class DialogWindow(QDialog):
+    submitted = pyqtSignal(str)
+    parameters_amount = 0
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        self._parent_view = parent
+
+        self.setModal(True)
+        self.setMinimumWidth(500)
+        self.setWindowTitle('Enter parameters')
+
+        self._windowFX = WindowEffect()
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._windowFX.setAeroEffect(int(self.winId()))
+
+        self._layout = QVBoxLayout(self)
+        self.setLayout(self._layout)
+
+        self._submit_button = QPushButton('Submit', self)
+        self._submit_button.setMaximumWidth(150)
+        self._submit_button.setStyleSheet('margin-top: 10px;')
+        self._submit_button.clicked.connect(self.send_parameters)
+
+    def add_parameter_field(self, number: int):
+        self._windowFX.setAeroEffect(int(self.winId()))
+
+        self._layout.addWidget(QLabel(f'Parameter {number}:', self))
+        line_edit = QLineEdit(self)
+        line_edit.setPlaceholderText(f'Enter parameter {number}')
+        line_edit.setStyleSheet('margin-bottom: 5px;')
+        self._layout.addWidget(line_edit)
+
+        if number == 1:
+            line_edit.setFocus()
+
+        self.parameters_amount += 1
+
+    def add_submit_button(self):
+        self._layout.addWidget(self._submit_button, alignment=Qt.AlignmentFlag.AlignRight)
+        self.setFixedHeight(self.sizeHint().height())
+
+    def send_parameters(self):
+        data = []
+        for widget in self.children():
+            if isinstance(widget, QLineEdit):
+                data.append(widget.text())
+
+        self.submitted.emit('\v'.join(data))
+        self._hide_and_clear()
+
+    def _hide_and_clear(self):
+        self.hide()
+
+        for widget in self.children():
+            if isinstance(widget, QLabel) or isinstance(widget, QLineEdit):
+                self._layout.removeWidget(widget)
+
+    def reject(self) -> None:
+        self._hide_and_clear()
+
+        # noinspection PyUnresolvedReferences
+        self._parent_view.clear_all(False)
