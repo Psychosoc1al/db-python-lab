@@ -28,6 +28,9 @@ class Model:
 
     def execute_query(self, db_id: int, query: str, *args) -> tuple[list[str, ...], list[list[str, ...]]]:
         self._cursors[db_id].execute(query, *args)
+        if self._cursors[db_id].description is None:
+            return [], []
+
         description = [column[0] for column in self._cursors[db_id].description]
         rows_data = self._cursors[db_id].fetchall()
 

@@ -50,13 +50,20 @@ class Presenter:
                 self.show_error(exception)
 
     def _handle_query_button_click(self) -> None:
+        query = self._view.query_input.toPlainText()
         try:
-            query = self._view.query_input.toPlainText()
             headers, data = self._model.execute_query(self._current_db_id, query)
             self._view.set_table_data(headers, data, len(data), len(headers))
-            # TODO: check for update queries (no table returned)
         except Exception as exception:
-            self.show_error(exception)
+            if 'HY000' in str(exception):
+                try:
+                    self._model.execute_query(self._current_db_id, f'EXEC ({query})')
+                    self._view.clear_all(False)
+                    self._view.table_data_label.setText('Database selected table data')
+                except Exception as exception:
+                    self.show_error(exception)
+            else:
+                self.show_error(exception)
 
     def _handle_list_item_activated(self) -> None:
         self._activated_list_item = self._view.list_widget.currentItem().text()
@@ -73,6 +80,25 @@ class Presenter:
                 params_amount = int(params_amount_search.group(1))
 
                 self._view.show_parameters_dialog(params_amount)
+            elif 'HY000' in str(exception):
+                query = f'''
+                SELECT MSysQueries.Name1
+                FROM MSysObjects INNER JOIN MSysQueries ON MSysObjects.Id = MSysQueries.ObjectId
+                WHERE (((MSysObjects.Name) = '{self._activated_list_item}') AND 
+                ((MSysQueries.Attribute) IN (1, 5)) AND ((MSysQueries.Name1) IS NOT NULL))
+                '''
+
+                try:
+                    self._model.execute_query(self._current_db_id, f'EXEC [{self._activated_list_item}]')
+
+                    _, data = self._model.execute_query(self._current_db_id, query)
+                    table_name = data[0][0]
+
+                    headers, data = self._model.execute_query(self._current_db_id, f'SELECT * FROM [{table_name}]')
+                    self._view.set_table_data(headers, data, len(data), len(headers))
+                    self._view.table_data_label.setText(f'{table_name} data')
+                except Exception as exception:
+                    self.show_error(exception)
             else:
                 self.show_error(exception)
 
@@ -85,8 +111,7 @@ class Presenter:
         for index, item in enumerate(items):
             item_type = int(data[index][-1])
             item_flag = int(data[index][4])
-            if not (item_type in (1, 5) and item_flag in (-2147483648, -2147352566, 0, 3, 10, 262154)):
-                # ...
+            if not (item_type in (1, 5) and item_flag in (-2147483648, -2147352566, 0, 3, 10, 32, 48, 64, 262154)):
                 item.setFlags(~Qt.ItemFlag.ItemIsEnabled)
 
     def _handle_parameters_on_submit(self, params_str: str) -> None:
