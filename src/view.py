@@ -1,9 +1,24 @@
 import qdarktheme
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QCloseEvent
-from PyQt6.QtWidgets import (QMainWindow, QToolBar, QListWidget, QWidget, QApplication,
-                             QTableWidget, QTableWidgetItem, QHBoxLayout, QSplitter, QVBoxLayout, QLabel, QTextEdit,
-                             QPushButton, QMessageBox, QAbstractItemView, QDialog, QLineEdit)
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QToolBar,
+    QListWidget,
+    QWidget,
+    QApplication,
+    QTableWidget,
+    QTableWidgetItem,
+    QHBoxLayout,
+    QSplitter,
+    QVBoxLayout,
+    QLabel,
+    QTextEdit,
+    QPushButton,
+    QMessageBox,
+    QAbstractItemView,
+    QDialog,
+    QLineEdit,
+)
 
 from qtacrylic_lib import WindowEffect
 
@@ -12,7 +27,7 @@ class View(QMainWindow):
     def __init__(self) -> None:
         super().__init__(parent=None)
 
-        self.setWindowTitle('Database worker')
+        self.setWindowTitle("Database worker")
 
         self._create_toolbar()
         self._create_and_set_widgets()
@@ -21,28 +36,30 @@ class View(QMainWindow):
         self._windowFX = WindowEffect()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._windowFX.setAeroEffect(int(self.winId()))
-        qdarktheme.setup_theme(custom_colors={'primary': '#d79df1'})
+        qdarktheme.setup_theme(custom_colors={"primary": "#d79df1"})
 
         self.parameters_dialog = DialogWindow(self)
         self.show()
 
     def _create_toolbar(self) -> None:
         self.tools = QToolBar(self)
-        label = QLabel('Choose database: ', self)
-        label.setStyleSheet('font-weight: bold;')
+        label = QLabel("Choose database: ", self)
+        label.setStyleSheet("font-weight: bold;")
         self.tools.addWidget(label)
         self.tools.addSeparator()
 
         for i in range(4, 7):
-            action_button = QPushButton(f'Database №{i}', self)
+            action_button = QPushButton(f"Database №{i}", self)
             action_button.setCheckable(True)
-            action_button.clicked.connect(lambda _, btn=action_button: _set_buttons_untoggling(btn.text()))
+            action_button.clicked.connect(
+                lambda _, btn=action_button: _set_buttons_untoggling(btn.text())
+            )
             self.tools.addWidget(action_button)
 
         def _set_buttons_untoggling(button_text: str) -> None:
             for widget in self.tools.children():
                 if isinstance(widget, QPushButton) and widget.text() != button_text:
-                    self.db_inner_label.setText(button_text + ' inner data')
+                    self.db_inner_label.setText(button_text + " inner data")
                     widget.setChecked(False)
 
         self.addToolBar(self.tools)
@@ -69,8 +86,8 @@ class View(QMainWindow):
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.db_inner_label = QLabel('Database inner data', left_widget)
-        self.db_inner_label.setStyleSheet('font-size: 16px; font-weight: bold;')
+        self.db_inner_label = QLabel("Database inner data", left_widget)
+        self.db_inner_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         self.db_inner_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(self.db_inner_label)
 
@@ -101,8 +118,10 @@ class View(QMainWindow):
         right_upper_layout = QVBoxLayout(right_upper_widget)
         right_upper_layout.setContentsMargins(0, 0, 0, 5)
 
-        self.table_data_label = QLabel('Database selected table data', right_upper_widget)
-        self.table_data_label.setStyleSheet('font-size: 16px; font-weight: bold;')
+        self.table_data_label = QLabel(
+            "Database selected table data", right_upper_widget
+        )
+        self.table_data_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         right_upper_layout.addWidget(self.table_data_label)
 
         self._table_widget = TableWidget()
@@ -116,13 +135,13 @@ class View(QMainWindow):
         right_lower_layout = QVBoxLayout(right_lower_widget)
         right_lower_layout.setContentsMargins(0, 0, 0, 0)
 
-        query_label = QLabel('Database query', right_lower_widget)
-        query_label.setStyleSheet('font-size: 16px; font-weight: bold;')
+        query_label = QLabel("Database query", right_lower_widget)
+        query_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         right_lower_layout.addWidget(query_label)
 
         self.query_input = QTextEdit(right_lower_widget)
-        self.query_input.setPlaceholderText('Enter your query here')
-        self.query_input.setStyleSheet('background: transparent; font-size: 14px;')
+        self.query_input.setPlaceholderText("Enter your query here")
+        self.query_input.setStyleSheet("background: transparent; font-size: 14px;")
         self.query_input.setMinimumHeight(50)
         self.query_input.setMaximumHeight(50)
         self.query_input.setEnabled(False)
@@ -132,11 +151,13 @@ class View(QMainWindow):
         button_layout.setContentsMargins(0, 0, 70, 5)
         right_lower_layout.addLayout(button_layout)
 
-        self.execute_query_button = QPushButton('Execute query', right_lower_widget)
-        self.execute_query_button.setStyleSheet('font-size: 14px;')
+        self.execute_query_button = QPushButton("Execute query", right_lower_widget)
+        self.execute_query_button.setStyleSheet("font-size: 14px;")
         self.execute_query_button.setFixedWidth(150)
         self.execute_query_button.setEnabled(False)
-        button_layout.insertWidget(0, self.execute_query_button, alignment=Qt.AlignmentFlag.AlignRight)
+        button_layout.insertWidget(
+            0, self.execute_query_button, alignment=Qt.AlignmentFlag.AlignRight
+        )
 
         return right_lower_widget
 
@@ -155,9 +176,15 @@ class View(QMainWindow):
         y = (screen_size.height() - window_height) // 2
         self.move(x, y)
 
-    def set_table_data(self, headers: list[str], data: list[list[str, ...]], row_count: int, column_count: int) -> None:
+    def set_table_data(
+        self,
+        headers: list[str],
+        data: list[list[str, ...]],
+        row_count: int,
+        column_count: int,
+    ) -> None:
         self._table_widget.clear_and_hide_table()
-        self.table_data_label.setText('Query result data')
+        self.table_data_label.setText("Query result data")
         self._table_widget.set_table_data(headers, data, row_count, column_count)
 
     def set_list_data(self, data: list[str]) -> None:
@@ -165,12 +192,12 @@ class View(QMainWindow):
         self.list_widget.set_list_data(data)
 
     def show_error_message(self, message: str) -> None:
-        QMessageBox.critical(self, 'An error occurred', message)
+        QMessageBox.critical(self, "An error occurred", message)
 
     def clear_all(self, clear_list: bool = True) -> None:
         self.list_widget.clearSelection()
         self._table_widget.clear_and_hide_table()
-        self.table_data_label.setText('Database selected table data')
+        self.table_data_label.setText("Database selected table data")
         if clear_list:
             self.list_widget.clear()
 
@@ -191,10 +218,16 @@ class TableWidget(QTableWidget):
     def __init__(self):
         super().__init__()
 
-        self.setStyleSheet('background: transparent; font-size: 16px;')
+        self.setStyleSheet("background: transparent; font-size: 16px;")
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-    def set_table_data(self, headers: list[str], data: list[list[str, ...]], row_count: int, column_count: int) -> None:
+    def set_table_data(
+        self,
+        headers: list[str],
+        data: list[list[str, ...]],
+        row_count: int,
+        column_count: int,
+    ) -> None:
         self._headers = headers
         self._data = data
         self._row_count = row_count
@@ -232,7 +265,7 @@ class ListWidget(QListWidget):
     def __init__(self):
         super().__init__()
 
-        self.setStyleSheet('background: transparent; font-size: 16px;')
+        self.setStyleSheet("background: transparent; font-size: 16px;")
 
     def set_list_data(self, data: list[str]) -> None:
         for elem in data:
@@ -249,7 +282,7 @@ class DialogWindow(QDialog):
 
         self.setModal(True)
         self.setMinimumWidth(500)
-        self.setWindowTitle('Enter parameters')
+        self.setWindowTitle("Enter parameters")
 
         self._windowFX = WindowEffect()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -258,18 +291,18 @@ class DialogWindow(QDialog):
         self._layout = QVBoxLayout(self)
         self.setLayout(self._layout)
 
-        self._submit_button = QPushButton('Submit', self)
+        self._submit_button = QPushButton("Submit", self)
         self._submit_button.setMaximumWidth(150)
-        self._submit_button.setStyleSheet('margin-top: 10px;')
+        self._submit_button.setStyleSheet("margin-top: 10px;")
         self._submit_button.clicked.connect(self.send_parameters)
 
     def add_parameter_field(self, number: int):
         self._windowFX.setAeroEffect(int(self.winId()))
 
-        self._layout.addWidget(QLabel(f'Parameter {number}:', self))
+        self._layout.addWidget(QLabel(f"Parameter {number}:", self))
         line_edit = QLineEdit(self)
-        line_edit.setPlaceholderText(f'Enter parameter {number}')
-        line_edit.setStyleSheet('margin-bottom: 5px;')
+        line_edit.setPlaceholderText(f"Enter parameter {number}")
+        line_edit.setStyleSheet("margin-bottom: 5px;")
         self._layout.addWidget(line_edit)
 
         if number == 1:
@@ -278,7 +311,9 @@ class DialogWindow(QDialog):
         self.parameters_amount += 1
 
     def add_submit_button(self):
-        self._layout.addWidget(self._submit_button, alignment=Qt.AlignmentFlag.AlignRight)
+        self._layout.addWidget(
+            self._submit_button, alignment=Qt.AlignmentFlag.AlignRight
+        )
         self.setFixedHeight(self.sizeHint().height())
 
     def send_parameters(self):
@@ -287,7 +322,7 @@ class DialogWindow(QDialog):
             if isinstance(widget, QLineEdit):
                 data.append(widget.text())
 
-        self.submitted.emit('\v'.join(data))
+        self.submitted.emit("\v".join(data))
         self._hide_and_clear()
 
     def _hide_and_clear(self):
