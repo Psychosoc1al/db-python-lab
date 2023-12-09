@@ -1,5 +1,6 @@
 import qdarktheme
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QModelIndex
+from PyQt6.QtGui import QPainter
 from PyQt6.QtWidgets import (
     QMainWindow,
     QToolBar,
@@ -15,17 +16,22 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QPushButton,
     QMessageBox,
-    QAbstractItemView,
     QDialog,
     QLineEdit,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
+    QStyle,
+    QAbstractItemView,
 )
 
 from qtacrylic_lib import WindowEffect
 
 
 class View(QMainWindow):
+    selected_rows_changed = pyqtSignal(str)
+
     def __init__(self) -> None:
-        super().__init__(parent=None)
+        super().__init__()
 
         self.setWindowTitle("Database worker")
 
@@ -124,8 +130,9 @@ class View(QMainWindow):
         self.table_data_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         right_upper_layout.addWidget(self.table_data_label)
 
-        self._table_widget = TableWidget()
-        right_upper_layout.addWidget(self._table_widget)
+        self.table_widget = TableWidget()
+        # self._table_widget.cellDoubleClicked.connect(self._show_parameters_dialog)
+        right_upper_layout.addWidget(self.table_widget)
 
         return right_upper_widget
 
@@ -179,13 +186,13 @@ class View(QMainWindow):
     def set_table_data(
         self,
         headers: list[str],
-        data: list[list[str, ...]],
+        data: list[list[str]],
         row_count: int,
         column_count: int,
     ) -> None:
-        self._table_widget.clear_and_hide_table()
+        self.table_widget.clear_and_hide_table()
         self.table_data_label.setText("Query result data")
-        self._table_widget.set_table_data(headers, data, row_count, column_count)
+        self.table_widget.set_table_data(headers, data, row_count, column_count)
 
     def set_list_data(self, data: list[str]) -> None:
         self.list_widget.clear()
@@ -196,7 +203,7 @@ class View(QMainWindow):
 
     def clear_all(self, clear_list: bool = True) -> None:
         self.list_widget.clearSelection()
-        self._table_widget.clear_and_hide_table()
+        self.table_widget.clear_and_hide_table()
         self.table_data_label.setText("Database selected table data")
         if clear_list:
             self.list_widget.clear()
@@ -208,10 +215,42 @@ class View(QMainWindow):
         self.parameters_dialog.add_submit_button()
         self.parameters_dialog.show()
 
+    def keyPressEvent(self, event) -> None:
+        def _is_row_fully_selected(row: int) -> bool:
+            return all(
+                self.table_widget.item(row, col).isSelected()
+                for col in range(self.table_widget.columnCount())
+            )
+
+        if event.key() == Qt.Key.Key_Delete:
+            selected_rows = set(
+                index.row() for index in self.table_widget.selectedIndexes()
+            )
+            selected_rows.discard(self.table_widget.rowCount() - 1)
+
+            fully_selected_rows = [
+                str(row) for row in selected_rows if _is_row_fully_selected(row)
+            ]
+
+            if fully_selected_rows:
+                self.selected_rows_changed.emit(",".join(fully_selected_rows))
+
+
+class CellEditDelegate(QStyledItemDelegate):
+    def paint(
+        self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> None:
+        if option.state == (
+            QStyle.StateFlag.State_Enabled | QStyle.StateFlag.State_Selected
+        ):
+            painter.fillRect(option.rect, option.palette.highlight())
+        else:
+            super().paint(painter, option, index)
+
 
 class TableWidget(QTableWidget):
     _headers: list[str]
-    _data: list[list[str, ...]]
+    _data: list[list[str]]
     _row_count: int
     _column_count: int
 
@@ -219,12 +258,15 @@ class TableWidget(QTableWidget):
         super().__init__()
 
         self.setStyleSheet("background: transparent; font-size: 16px;")
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
+        self.setItemDelegate(CellEditDelegate())
+
+        # self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
     def set_table_data(
         self,
         headers: list[str],
-        data: list[list[str, ...]],
+        data: list[list[str]],
         row_count: int,
         column_count: int,
     ) -> None:
@@ -243,7 +285,7 @@ class TableWidget(QTableWidget):
 
         for i in range(self._row_count):
             for j in range(self._column_count):
-                table_item = QTableWidgetItem(self._data[i][j])
+                table_item = QTableWidgetItem(str(self._data[i][j]))
                 table_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.setItem(i, j, table_item)
 

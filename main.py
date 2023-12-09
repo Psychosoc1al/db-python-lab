@@ -9,9 +9,9 @@ from src.view import View
 
 def main() -> None:
     app = QApplication([])
-    myappid = 'databases.labs.7'
+    myappid = "databases.labs.7"
     SetCurrentProcessExplicitAppUserModelID(myappid)
-    app.setWindowIcon(QIcon('icons/icon.png'))
+    app.setWindowIcon(QIcon("icons/icon.png"))
 
     with Model() as model:
         window = View()
@@ -20,5 +20,5 @@ def main() -> None:
         app.exec()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

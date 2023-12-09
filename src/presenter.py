@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from PyQt6.QtCore import QObject, QEvent, Qt
 from PyQt6.QtWidgets import QPushButton
@@ -12,6 +13,7 @@ class Presenter:
     _view: View
     _current_db_id: int
     _activated_list_item: str
+    _last_query_result: tuple[list[str], list[list[str | int | datetime]]]
 
     def __init__(self, model, view) -> None:
         self._model = model
@@ -21,6 +23,8 @@ class Presenter:
         self._view.parameters_dialog.submitted.connect(
             self._handle_parameters_on_submit
         )
+
+        self._view.selected_rows_changed.connect(self._delete_table_rows)
 
     def _setup_gui_connections(self) -> None:
         self._set_toolbar_actions()
@@ -70,6 +74,17 @@ class Presenter:
             headers, data = self._model.execute_query(
                 self._current_db_id, f"SELECT * FROM [{self._activated_list_item}]"
             )
+            if data and self._activated_list_item in (
+                "Вид спорта",
+                "Спортсмен",
+                "Соревнование",
+                "Команда",
+                "Стадион",
+                "Результат",
+            ):
+                data.append([""] * len(data[0]))
+            self._last_query_result = (headers, data)
+
             self._view.set_table_data(headers, data, len(data), len(headers))
             self._view.table_data_label.setText(f"{self._activated_list_item} data")
         except Exception as exception:
@@ -113,7 +128,7 @@ class Presenter:
         )
         items = [
             self._view.list_widget.item(index)
-            for index in range(self._view.list_widget.count())
+            for index in range(self._view.list_widget.count() - 1)
         ]
         for index, item in enumerate(items):
             item_type = int(data[index][-1])
@@ -142,6 +157,39 @@ class Presenter:
         except Exception as exception:
             self.show_error(exception)
             self._view.clear_all(False)
+
+    def _delete_table_rows(self, rows: str) -> None:
+        try:
+            rows_list = [int(row) for row in rows.split(",")]
+            for row in rows_list:
+                first_column, second_column = self._last_query_result[0][:2]
+                values = self._last_query_result[1][row][:2]
+
+                first_value = (
+                    f"#{values[0].date()}#"
+                    if isinstance(values[0], datetime)
+                    else values[0]
+                )
+                second_value = (
+                    f"'{values[1]}'" if isinstance(values[1], str) else values[1]
+                )
+
+                print(
+                    f"""
+                DELETE FROM [{self._activated_list_item}]
+                WHERE [{first_column}] = {first_value} AND [{second_column}] = {second_value}
+                """
+                )
+                self._model.execute_query(
+                    self._current_db_id,
+                    f"""
+                DELETE FROM [{self._activated_list_item}]
+                WHERE (([{first_column}] = {first_value}) AND ([{second_column}] = {second_value}))
+                """,
+                )
+            self._handle_list_item_activated()
+        except Exception as exception:
+            self.show_error(exception)
 
 
 class ShortcutFilter(QObject):

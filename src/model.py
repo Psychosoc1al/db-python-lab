@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pyodbc import connect
 
 
@@ -28,7 +30,7 @@ class Model:
 
     def execute_query(
         self, db_id: int, query: str, *args
-    ) -> tuple[list[str, ...], list[list[str, ...]]]:
+    ) -> tuple[list[str], list[list[str | int | datetime]]]:
         self._cursors[db_id].execute(query, *args)
         if self._cursors[db_id].description is None:
             return [], []
@@ -45,6 +47,11 @@ class Model:
                 elif isinstance(elem, bytes):
                     data[row_index][elem_index] = "[Bytes]"
                 else:
-                    data[row_index][elem_index] = str(elem)
+                    data[row_index][elem_index] = elem
 
         return description, data
+
+    def delete_rows(self, db_id: int, table: str, rows: list[int]):
+        for row in rows:
+            query = f"DELETE FROM {table} WHERE ID={row}"
+            self._cursors[db_id].execute(query)

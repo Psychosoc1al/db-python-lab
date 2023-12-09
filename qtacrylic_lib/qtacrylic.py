@@ -62,6 +62,7 @@ class WindowEffect:
     @staticmethod
     def moveWindow(hWnd: int):
         win32gui.ReleaseCapture()
+        # noinspection PyUnresolvedReferences
         win32api.SendMessage(
             hWnd, win32con.WM_SYSCOMMAND, win32con.SC_MOVE + win32con.HTCAPTION, 0
         )
