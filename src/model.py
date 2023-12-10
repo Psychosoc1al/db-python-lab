@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from pyodbc import connect
 
@@ -30,7 +30,7 @@ class Model:
 
     def execute_query(
         self, db_id: int, query: str, *args
-    ) -> tuple[list[str], list[list[str | int | datetime]]]:
+    ) -> tuple[list[str], list[list[str | int | date]]]:
         self._cursors[db_id].execute(query, *args)
         if self._cursors[db_id].description is None:
             return [], []
@@ -47,7 +47,10 @@ class Model:
                 elif isinstance(elem, bytes):
                     data[row_index][elem_index] = "[Bytes]"
                 else:
-                    data[row_index][elem_index] = elem
+                    if isinstance(elem, datetime):
+                        data[row_index][elem_index] = elem.date()
+                    else:
+                        data[row_index][elem_index] = elem
 
         return description, data
 

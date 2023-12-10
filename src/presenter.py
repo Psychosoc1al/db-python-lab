@@ -25,6 +25,7 @@ class Presenter:
         )
 
         self._view.selected_rows_changed.connect(self._delete_table_rows)
+        self._view.add_row_button.clicked.connect(self._handle_add_row_button_click)
 
     def _setup_gui_connections(self) -> None:
         self._set_toolbar_actions()
@@ -174,12 +175,6 @@ class Presenter:
                     f"'{values[1]}'" if isinstance(values[1], str) else values[1]
                 )
 
-                print(
-                    f"""
-                DELETE FROM [{self._activated_list_item}]
-                WHERE [{first_column}] = {first_value} AND [{second_column}] = {second_value}
-                """
-                )
                 self._model.execute_query(
                     self._current_db_id,
                     f"""
@@ -187,6 +182,27 @@ class Presenter:
                 WHERE (([{first_column}] = {first_value}) AND ([{second_column}] = {second_value}))
                 """,
                 )
+            self._handle_list_item_activated()
+        except Exception as exception:
+            self.show_error(exception)
+
+    def _handle_add_row_button_click(self, _) -> None:
+        try:
+            table_widget = self._view.table_widget
+            values = [
+                table_widget.item(table_widget.rowCount() - 1, column).text()
+                for column in range(table_widget.columnCount())
+            ]
+            values_str = ", ".join([f"'{value}'" for value in values])
+
+            self._model.execute_query(
+                self._current_db_id,
+                f"""
+                INSERT INTO [{self._activated_list_item}]
+                VALUES ({values_str})
+                """,
+            )
+
             self._handle_list_item_activated()
         except Exception as exception:
             self.show_error(exception)
