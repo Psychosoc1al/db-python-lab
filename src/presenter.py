@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import date
 
 from PyQt6.QtCore import QObject, QEvent, Qt
 from PyQt6.QtWidgets import QPushButton
@@ -13,7 +13,7 @@ class Presenter:
     _view: View
     _current_db_id: int
     _activated_list_item: str
-    _last_query_result: tuple[list[str], list[list[str | int | datetime]]]
+    _last_query_result: tuple[list[str], list[list[str | int | date]]]
 
     def __init__(self, model, view) -> None:
         self._model = model
@@ -26,6 +26,7 @@ class Presenter:
 
         self._view.selected_rows_changed.connect(self._delete_table_rows)
         self._view.add_row_button.clicked.connect(self._handle_add_row_button_click)
+        self._view.cell_edited.connect(self._handle_cell_edited)
 
     def _setup_gui_connections(self) -> None:
         self._set_toolbar_actions()
@@ -83,7 +84,7 @@ class Presenter:
                 "Стадион",
                 "Результат",
             ):
-                data.append([""] * len(data[0]))
+                data.append([""] * len(headers))
             self._last_query_result = (headers, data)
 
             self._view.set_table_data(headers, data, len(data), len(headers))
@@ -167,9 +168,7 @@ class Presenter:
                 values = self._last_query_result[1][row][:2]
 
                 first_value = (
-                    f"#{values[0].date()}#"
-                    if isinstance(values[0], datetime)
-                    else values[0]
+                    f"#{values[0]}#" if isinstance(values[0], date) else values[0]
                 )
                 second_value = (
                     f"'{values[1]}'" if isinstance(values[1], str) else values[1]
@@ -182,6 +181,7 @@ class Presenter:
                 WHERE (([{first_column}] = {first_value}) AND ([{second_column}] = {second_value}))
                 """,
                 )
+
             self._handle_list_item_activated()
         except Exception as exception:
             self.show_error(exception)
@@ -205,6 +205,34 @@ class Presenter:
 
             self._handle_list_item_activated()
         except Exception as exception:
+            self.show_error(exception)
+
+    def _handle_cell_edited(self, row: int, column: int) -> None:
+        try:
+            first_column, second_column = self._last_query_result[0][:2]
+            values = self._last_query_result[1][row][:2]
+
+            first_condition_value = (
+                f"#{values[0]}#" if isinstance(values[0], date) else values[0]
+            )
+            second_condition_value = (
+                f"'{values[1]}'" if isinstance(values[1], str) else values[1]
+            )
+
+            value = self._view.table_widget.item(row, column).text()
+
+            self._model.execute_query(
+                self._current_db_id,
+                f"""
+                    UPDATE [{self._activated_list_item}]
+                    SET [{self._last_query_result[0][column]}] = '{value}'
+                    WHERE (([{first_column}] = {first_condition_value}) AND ([{second_column}] = {second_condition_value}))
+                    """,
+            )
+
+            self._handle_list_item_activated()
+        except Exception as exception:
+            self._handle_list_item_activated()
             self.show_error(exception)
 
 

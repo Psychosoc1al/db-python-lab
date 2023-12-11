@@ -48,6 +48,7 @@ class Model:
                     data[row_index][elem_index] = "[Bytes]"
                 else:
                     if isinstance(elem, datetime):
+                        # noinspection PyTypeChecker
                         data[row_index][elem_index] = elem.date()
                     else:
                         data[row_index][elem_index] = elem

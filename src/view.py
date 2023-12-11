@@ -29,6 +29,8 @@ from qtacrylic_lib import WindowEffect
 
 class View(QMainWindow):
     selected_rows_changed = pyqtSignal(str)
+    cell_edited = pyqtSignal(int, int)
+    editing_cell: tuple[int, int]
 
     def __init__(self) -> None:
         super().__init__()
@@ -131,8 +133,9 @@ class View(QMainWindow):
         right_upper_layout.addWidget(self.table_data_label)
 
         self.table_widget = TableWidget(right_upper_widget)
-        right_upper_layout.addWidget(self.table_widget)
         self.table_widget.delegate.closeEditor.connect(self._handle_editing_end)
+        self.table_widget.cellDoubleClicked.connect(self._set_editing_cell)
+        right_upper_layout.addWidget(self.table_widget)
 
         self.add_row_button = QPushButton("Add row", right_upper_widget)
         self.add_row_button.setVisible(False)
@@ -223,7 +226,10 @@ class View(QMainWindow):
         self.parameters_dialog.show()
 
     def keyPressEvent(self, event) -> None:
-        if event.key() == Qt.Key.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete and not all(
+            self.table_widget.item(self.table_widget.rowCount() - 1, col).text()
+            for col in range(self.table_widget.columnCount())
+        ):
             selected_rows = set(
                 index.row() for index in self.table_widget.selectedIndexes()
             )
@@ -262,9 +268,15 @@ class View(QMainWindow):
 
             if filled_cells_count == 0:
                 self.add_row_button.setVisible(False)
+
+                if self.editing_cell[0] != self.table_widget.rowCount() - 1:
+                    self.cell_edited.emit(*self.editing_cell)
             else:
                 self.add_row_button.setVisible(True)
                 self.table_widget.fit_table_sizes()
+
+    def _set_editing_cell(self, row: int, column: int) -> None:
+        self.editing_cell = (row, column)
 
 
 class CellEditDelegate(QStyledItemDelegate):
@@ -310,6 +322,10 @@ class TableWidget(QTableWidget):
         self._row_count = row_count
         self._column_count = column_count
 
+        if data and all(data[-1][j] == "" for j in range(column_count)):
+            self.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
+        else:
+            self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self._fill_table_data()
         self.fit_table_sizes()
 
