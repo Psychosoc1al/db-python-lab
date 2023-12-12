@@ -226,7 +226,8 @@ class Presenter:
                 f"""
                     UPDATE [{self._activated_list_item}]
                     SET [{self._last_query_result[0][column]}] = '{value}'
-                    WHERE (([{first_column}] = {first_condition_value}) AND ([{second_column}] = {second_condition_value}))
+                    WHERE (([{first_column}] = {first_condition_value}) 
+                    AND ([{second_column}] = {second_condition_value}))
                     """,
             )
 
